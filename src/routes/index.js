@@ -1,19 +1,26 @@
 const express = require('express');
-const HelloRoutes = require('./hello.routes');
+const socketRoutes = require('./socket.routes');
+const databaseRoutes = require('./database.routes');
+const authRoutes = require('./auth.routes');
 
 class RouteManager {
   constructor() {
     this.router = express.Router();
-    this.helloRoutes = new HelloRoutes();
     this.initializeRoutes();
   }
 
   initializeRoutes() {
-    // Hello routes (for testing)
-    this.router.use('/hello', this.helloRoutes.getRouter());
+
+    // Socket test routes
+    this.router.use('/socket', socketRoutes);
+
+    // Database test routes
+    this.router.use('/db', databaseRoutes);
+
+    // Authentication routes
+    this.router.use('/auth', authRoutes);
 
     // Add more route modules here as you develop
-    // this.router.use('/auth', authRoutes);
     // this.router.use('/posts', postRoutes);
     // this.router.use('/users', userRoutes);
   }

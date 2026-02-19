@@ -73,6 +73,10 @@ class App {
     this.app.use(this.errorHandler.handle.bind(this.errorHandler));
   }
 
+  getApp() {
+    return this.app;
+  }
+
   listen(port, callback) {
     return this.app.listen(port, callback);
   }
