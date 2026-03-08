@@ -2,6 +2,7 @@ const express = require('express');
 const socketRoutes = require('./socket.routes');
 const databaseRoutes = require('./database.routes');
 const authRoutes = require('./auth.routes');
+const newsRoutes = require("./news.routes")
 
 class RouteManager {
   constructor() {
@@ -19,7 +20,8 @@ class RouteManager {
 
     // Authentication routes
     this.router.use('/auth', authRoutes);
-
+    // News routes
+    this.router.use('/news', newsRoutes);
     // Add more route modules here as you develop
     // this.router.use('/posts', postRoutes);
     // this.router.use('/users', userRoutes);
