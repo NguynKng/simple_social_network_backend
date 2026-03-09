@@ -44,11 +44,11 @@ const userSchema = new mongoose.Schema({
   },
   avatar: {
     type: String,
-    default: null
+    default: "default-avatar"
   },
   coverPhoto: {
     type: String,
-    default: null
+    default: "background-gray-default"
   },
   slug: {
     type: String,
