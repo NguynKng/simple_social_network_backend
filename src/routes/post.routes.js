@@ -8,6 +8,10 @@ const router = express.Router();
 router.post("/", authenticate, uploadOptionalPostImagesMiddleware, PostController.create_post);
 router.get("/", PostController.getPost);
 router.get("/owner/:ownerId?", authenticate, PostController.getPostByOwner);
+router.post("/:postId/comment", authenticate, PostController.addComment);
+router.post("/:postId/reply", authenticate, PostController.addReply);
+router.get("/:postId/comments", PostController.getCommentByPost);
+router.post("/:postId/reaction", authenticate, PostController.ReactTopost);
 router.get("/:postId", PostController.getPostById);
 router.delete("/:postId", authenticate, PostController.DeletePost);
 

@@ -71,6 +71,52 @@ class PostController {
       next(error);
     }
   }
+
+  static async addComment(req, res, next) {
+    try {
+      const { postId } = req.params;
+      const userId = req.user?.id;
+      const { content } = req.body;
+      const result = await postService.addComment(postId, userId, content);
+      res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async addReply(req, res, next) {
+    try {
+      const { postId } = req.params;
+      const userId = req.user?.id;
+      const { parentCommentId, content } = req.body;
+      const result = await postService.addReply(postId, parentCommentId, userId, content);
+      res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getCommentByPost(req, res, next) {
+    try {
+      const { postId } = req.params;
+      const result = await postService.getCommentByPost(postId);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async ReactTopost(req, res, next) {
+    try {
+      const { postId } = req.params;
+      const userId = req.user?.id;
+      const { type } = req.body;
+      const result = await postService.ReactTopost(postId, userId, type);
+      res.status(result.status).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = PostController;
