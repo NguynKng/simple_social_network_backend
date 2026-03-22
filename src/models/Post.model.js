@@ -3,17 +3,6 @@ const mongoose = require("mongoose");
 const postSchema = new mongoose.Schema({
   author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
 
-  // 🏠 Bối cảnh nơi bài viết được đăng (trang cá nhân, nhóm, hoặc shop)
-  postedByType: {
-    type: String,
-    enum: ["User", "Shop", "Group"],
-    required: true,
-  },
-  postedById: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
-    refPath: "postedByType",
-  },
   taggedUsers: [
     {
       type: mongoose.Schema.Types.ObjectId,
