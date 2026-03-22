@@ -1,17 +1,17 @@
-/**
- * Models Index
- * Central export point cho tất cả models
- */
-
 const User = require('./User.model');
+const Post = require('./Post.model');
+const Comment = require('./Comment.model');
+const Reaction = require('./Reaction.model');
+const Chat = require('./Chat.model');
+const Message = require('./Message.model');
+const Notification = require('./Notification.model');
 
 module.exports = {
   User,
-  // Thêm các models khác ở đây khi tạo
-  // Post,
-  // Comment,
-  // Like,
-  // Follow,
-  // Message,
-  // Notification
+  Post,
+  Comment,
+  Reaction,
+  Chat,
+  Message,
+  Notification
 };
