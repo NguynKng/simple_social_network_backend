@@ -230,7 +230,34 @@ class UserService extends BaseService {
   }
 
   /**
-   * Lấy thông tin người dùng theo ID (API công khai, đã ẩn dữ liệu nhạy cảm)
+   * Lấy thông tin người dùng theo slug (public)
+   * @param {String} slug - User slug
+   * @param {Object} [options] - Query options (populate/select nếu cần)
+   * @returns {Promise<Object>} { success, message, status, data }
+   */
+  async getUserBySlug(slug, options = {}) {
+    if (!slug || typeof slug !== 'string' || !this.isValidSlug(slug)) {
+      throw new BadRequestError('Slug người dùng không hợp lệ');
+    }
+
+    const { select = '-password -email -phoneNumber' } = options;
+
+    const user = await this.repository.findBySlug(slug, { ...options, select });
+
+    if (!user || user.isActive === false) {
+      throw new NotFoundError('Người dùng không tồn tại');
+    }
+
+    return {
+      success: true,
+      message: 'Lấy thông tin người dùng thành công',
+      status: 200,
+      data: user,
+    };
+  }
+
+  /**
+   * Lấy thông tin người dùng theo ID 
    * @param {String} id - MongoDB ObjectId
    * @param {Object} [options] - Tùy chọn truyền xuống repository (populate, select)
    * @returns {Promise<Object>} { success, message, status, data }

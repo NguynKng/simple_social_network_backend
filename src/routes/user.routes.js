@@ -6,6 +6,6 @@ const router = express.Router();
 /**
  * User routes — Base: /api/:version/users
  */
-router.get('/:id', UserController.getUserById);
+router.get('/:slug', UserController.getUserBySlug);
 
 module.exports = router;
