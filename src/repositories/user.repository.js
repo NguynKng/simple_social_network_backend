@@ -146,6 +146,26 @@ class UserRepository extends BaseRepository {
     
     return this.paginate(filter, options);
   }
+
+  /**
+   * Lấy user theo ID (profile công khai — không trả email, SĐT, mật khẩu)
+   * @param {String} id - MongoDB ObjectId
+   * @param {Object} options - Giống findById (populate, ...)
+   * @returns {Promise<Object|null>}
+   */
+  async findByIdPublic(id, options = {}) {
+    if (!isValidObjectId(id)) {
+      return null;
+    }
+
+    const { select = '-password -email -phoneNumber', populate = [] } = options;
+
+    return this.model
+      .findById(id)
+      .select(select)
+      .populate(populate)
+      .lean();
+  }
 }
 
 module.exports = UserRepository;
