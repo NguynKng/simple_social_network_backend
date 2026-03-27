@@ -1,6 +1,7 @@
 const BaseService = require('./base.service');
 const UserRepository = require('../repositories/user.repository');
 const { BadRequestError, NotFoundError } = require('../utils/errors');
+const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/cloudinary');
 
 /**
  * UserService - Business logic for User operations
@@ -250,6 +251,86 @@ class UserService extends BaseService {
       message: 'Lấy thông tin người dùng thành công',
       status: 200,
       data: user,
+    };
+  }
+
+  async setAvatar(userId, file) {
+    if (!userId) {
+      throw new BadRequestError('Thiếu userId');
+    }
+
+    if (!file || !file.buffer) {
+      throw new BadRequestError('Vui lòng tải lên ảnh avatar');
+    }
+
+    const user = await this.repository.findById(userId, {
+      select: 'avatar',
+    });
+
+    if (!user) {
+      throw new NotFoundError('Người dùng không tồn tại');
+    }
+
+    const uploadResult = await uploadToCloudinary(file.buffer, 'avatar');
+    const previousAvatar = user.avatar;
+
+    await this.repository.update(userId, { avatar: uploadResult.public_id });
+
+    if (previousAvatar && previousAvatar !== 'default-avatar') {
+      try {
+        await deleteFromCloudinary(previousAvatar);
+      } catch (_error) {
+        // Ignore cleanup failure to keep update flow successful.
+      }
+    }
+
+    return {
+      success: true,
+      message: 'Cập nhật avatar thành công',
+      status: 200,
+      data: {
+        avatar: uploadResult.public_id,
+      },
+    };
+  }
+
+  async setCoverPhoto(userId, file) {
+    if (!userId) {
+      throw new BadRequestError('Thiếu userId');
+    }
+
+    if (!file || !file.buffer) {
+      throw new BadRequestError('Vui lòng tải lên ảnh cover');
+    }
+
+    const user = await this.repository.findById(userId, {
+      select: 'coverPhoto',
+    });
+
+    if (!user) {
+      throw new NotFoundError('Người dùng không tồn tại');
+    }
+
+    const uploadResult = await uploadToCloudinary(file.buffer, 'cover');
+    const previousCoverPhoto = user.coverPhoto;
+
+    await this.repository.update(userId, { coverPhoto: uploadResult.public_id });
+
+    if (previousCoverPhoto && previousCoverPhoto !== 'background-gray-default') {
+      try {
+        await deleteFromCloudinary(previousCoverPhoto);
+      } catch (_error) {
+        // Ignore cleanup failure to keep update flow successful.
+      }
+    }
+
+    return {
+      success: true,
+      message: 'Cập nhật ảnh bìa thành công',
+      status: 200,
+      data: {
+        coverPhoto: uploadResult.public_id,
+      },
     };
   }
 
