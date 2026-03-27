@@ -590,10 +590,6 @@ class UserService extends BaseService {
    * @returns {Promise<Object>} Paginated results
    */
   async searchUsers(searchTerm, options = {}) {
-    if (!searchTerm || searchTerm.trim().length < 2) {
-      throw new BadRequestError('Từ khóa tìm kiếm phải có ít nhất 2 ký tự');
-    }
-
     const result = await this.repository.search(searchTerm.trim(), options);
 
     return {
