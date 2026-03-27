@@ -9,6 +9,41 @@ const { isValidObjectId } = require('../utils/database.util');
  * @extends BaseRepository
  */
 class UserRepository extends BaseRepository {
+  getVietnameseCharGroup(char) {
+    const lowerChar = char.toLowerCase();
+
+    if ('aàáảãạăằắẳẵặâầấẩẫậ'.includes(lowerChar)) return 'aàáảãạăằắẳẵặâầấẩẫậ';
+    if ('eèéẻẽẹêềếểễệ'.includes(lowerChar)) return 'eèéẻẽẹêềếểễệ';
+    if ('iìíỉĩị'.includes(lowerChar)) return 'iìíỉĩị';
+    if ('oòóỏõọôồốổỗộơờớởỡợ'.includes(lowerChar)) return 'oòóỏõọôồốổỗộơờớởỡợ';
+    if ('uùúủũụưừứửữự'.includes(lowerChar)) return 'uùúủũụưừứửữự';
+    if ('yỳýỷỹỵ'.includes(lowerChar)) return 'yỳýỷỹỵ';
+    if ('dđ'.includes(lowerChar)) return 'dđ';
+
+    return null;
+  }
+
+  escapeRegex(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  buildVietnameseSearchRegex(searchTerm) {
+    const normalizedTerm = searchTerm.trim();
+    let pattern = '';
+
+    for (const char of normalizedTerm) {
+      if (/\s/.test(char)) {
+        pattern += '\\s+';
+        continue;
+      }
+
+      const charGroup = this.getVietnameseCharGroup(char);
+      pattern += charGroup ? `[${charGroup}]` : this.escapeRegex(char);
+    }
+
+    return new RegExp(pattern, 'i');
+  }
+
   /**
    * Initialize UserRepository with User model
    */
@@ -133,13 +168,15 @@ class UserRepository extends BaseRepository {
    * @returns {Promise<Object>} Paginated results
    */
   async search(searchTerm, options = {}) {
-    const searchRegex = new RegExp(searchTerm, 'i');
+    const normalizedTerm = searchTerm.trim();
+    const fullNameRegex = this.buildVietnameseSearchRegex(normalizedTerm);
+    const plainRegex = new RegExp(this.escapeRegex(normalizedTerm), 'i');
     
     const filter = {
       $or: [
-        { fullName: searchRegex },
-        { slug: searchRegex },
-        { email: searchRegex }
+        { fullName: fullNameRegex },
+        { slug: plainRegex },
+        { email: plainRegex }
       ],
       deletedAt: null
     };
@@ -148,22 +185,27 @@ class UserRepository extends BaseRepository {
   }
 
   /**
-   * Lấy user theo ID (profile công khai — không trả email, SĐT, mật khẩu)
-   * @param {String} id - MongoDB ObjectId
-   * @param {Object} options - Giống findById (populate, ...)
+   * Lấy public profile theo slug kèm danh sách bạn bè và lời mời kết bạn
+   * @param {String} slug - User slug
+   * @param {Object} options - Query options
    * @returns {Promise<Object|null>}
    */
-  async findByIdPublic(id, options = {}) {
-    if (!isValidObjectId(id)) {
+  async findProfileBySlug(slug, options = {}) {
+    if (!slug || typeof slug !== 'string') {
       return null;
     }
 
     const { select = '-password -email -phoneNumber', populate = [] } = options;
 
+    const defaultPopulate = [
+      { path: 'friends', select: 'fullName avatar slug' },
+      { path: 'friendRequests', select: 'fullName avatar slug' },
+    ];
+
     return this.model
-      .findById(id)
+      .findOne({ slug: slug.toLowerCase(), deletedAt: null })
       .select(select)
-      .populate(populate)
+      .populate([...defaultPopulate, ...populate])
       .lean();
   }
 }

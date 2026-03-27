@@ -108,9 +108,11 @@ const baseModelPlugin = (schema, options = {}) => {
     const limit = parseInt(options.limit, 10) || 10;
     const skip = (page - 1) * limit;
     const sort = options.sort || { createdAt: -1 };
+    const select = options.select || '';
 
     const [data, total] = await Promise.all([
       this.find(query)
+        .select(select)
         .sort(sort)
         .skip(skip)
         .limit(limit)
