@@ -2,6 +2,7 @@ const BaseService = require('./base.service');
 const UserRepository = require('../repositories/user.repository');
 const { BadRequestError, NotFoundError } = require('../utils/errors');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/cloudinary');
+const { isValidObjectId } = require('../utils/database.util');
 
 /**
  * UserService - Business logic for User operations
@@ -332,6 +333,206 @@ class UserService extends BaseService {
         coverPhoto: uploadResult.public_id,
       },
     };
+  }
+
+  async sendFriendRequest(senderId, targetUserId) {
+    this.validateFriendActionIds(senderId, targetUserId);
+
+    if (String(senderId) === String(targetUserId)) {
+      throw new BadRequestError('Không thể gửi lời mời kết bạn cho chính mình');
+    }
+
+    const [sender, targetUser] = await Promise.all([
+      this.repository.findById(senderId, { select: '_id isActive' }),
+      this.repository.findById(targetUserId, { select: '_id friends friendRequests isActive' }),
+    ]);
+
+    if (!sender || sender.isActive === false) {
+      throw new NotFoundError('Người gửi không tồn tại');
+    }
+
+    if (!targetUser || targetUser.isActive === false) {
+      throw new NotFoundError('Người nhận không tồn tại');
+    }
+
+    const isAlreadyFriend = targetUser.friends?.some((friendId) => String(friendId) === String(senderId));
+    if (isAlreadyFriend) {
+      throw new BadRequestError('Hai người đã là bạn bè');
+    }
+
+    const requestAlreadySent = targetUser.friendRequests?.some((requestId) => String(requestId) === String(senderId));
+    if (requestAlreadySent) {
+      throw new BadRequestError('Đã gửi lời mời kết bạn trước đó');
+    }
+
+    await this.repository.addFriendRequest(targetUserId, senderId);
+    const updatedSender = await this.getFriendActionProfile(senderId);
+
+    return {
+      success: true,
+      message: 'Gửi lời mời kết bạn thành công',
+      status: 200,
+      data: updatedSender,
+    };
+  }
+
+  async cancelFriendRequest(senderId, targetUserId) {
+    this.validateFriendActionIds(senderId, targetUserId);
+
+    const targetUser = await this.repository.findById(targetUserId, {
+      select: '_id friendRequests isActive',
+    });
+
+    if (!targetUser || targetUser.isActive === false) {
+      throw new NotFoundError('Người nhận không tồn tại');
+    }
+
+    await this.repository.removeFriendRequest(targetUserId, senderId);
+    const updatedSender = await this.getFriendActionProfile(senderId);
+
+    return {
+      success: true,
+      message: 'Hủy lời mời kết bạn thành công',
+      status: 200,
+      data: updatedSender,
+    };
+  }
+
+  async acceptFriendRequest(userId, requesterId) {
+    this.validateFriendActionIds(userId, requesterId);
+
+    if (String(userId) === String(requesterId)) {
+      throw new BadRequestError('Không thể chấp nhận lời mời của chính mình');
+    }
+
+    const [user, requester] = await Promise.all([
+      this.repository.findById(userId, { select: '_id friends friendRequests isActive' }),
+      this.repository.findById(requesterId, { select: '_id friends isActive' }),
+    ]);
+
+    if (!user || user.isActive === false) {
+      throw new NotFoundError('Người dùng không tồn tại');
+    }
+
+    if (!requester || requester.isActive === false) {
+      throw new NotFoundError('Người gửi lời mời không tồn tại');
+    }
+
+    const requestExists = user.friendRequests?.some((requestId) => String(requestId) === String(requesterId));
+    if (!requestExists) {
+      throw new BadRequestError('Không tìm thấy lời mời kết bạn');
+    }
+
+    await Promise.all([
+      this.repository.removeFriendRequest(userId, requesterId),
+      this.repository.addFriend(userId, requesterId),
+      this.repository.addFriend(requesterId, userId),
+    ]);
+    const updatedUser = await this.getFriendActionProfile(userId);
+
+    return {
+      success: true,
+      message: 'Chấp nhận lời mời kết bạn thành công',
+      status: 200,
+      data: updatedUser,
+    };
+  }
+
+  async rejectFriendRequest(userId, requesterId) {
+    this.validateFriendActionIds(userId, requesterId);
+
+    const [user, requester] = await Promise.all([
+      this.repository.findById(userId, {
+      select: '_id friendRequests isActive',
+      }),
+      this.repository.findById(requesterId, {
+        select: '_id isActive',
+      }),
+    ]);
+
+    if (!user || user.isActive === false) {
+      throw new NotFoundError('Người dùng không tồn tại');
+    }
+
+    if (!requester || requester.isActive === false) {
+      throw new NotFoundError('Người gửi lời mời không tồn tại');
+    }
+
+    const requestExists = user.friendRequests?.some((requestId) => String(requestId) === String(requesterId));
+    if (!requestExists) {
+      throw new BadRequestError('Không tìm thấy lời mời kết bạn');
+    }
+
+    await this.repository.removeFriendRequest(userId, requesterId);
+    const updatedUser = await this.getFriendActionProfile(userId);
+
+    return {
+      success: true,
+      message: 'Từ chối lời mời kết bạn thành công',
+      status: 200,
+      data: updatedUser,
+    };
+  }
+
+  async unfriend(userId, friendId) {
+    this.validateFriendActionIds(userId, friendId);
+
+    if (String(userId) === String(friendId)) {
+      throw new BadRequestError('Không thể hủy kết bạn với chính mình');
+    }
+
+    const [user, friend] = await Promise.all([
+      this.repository.findById(userId, { select: '_id friends isActive' }),
+      this.repository.findById(friendId, { select: '_id isActive' }),
+    ]);
+
+    if (!user || user.isActive === false) {
+      throw new NotFoundError('Người dùng không tồn tại');
+    }
+
+    if (!friend || friend.isActive === false) {
+      throw new NotFoundError('Bạn bè không tồn tại');
+    }
+
+    const isFriend = user.friends?.some((currentFriendId) => String(currentFriendId) === String(friendId));
+    if (!isFriend) {
+      throw new BadRequestError('Hai người chưa là bạn bè');
+    }
+
+    await Promise.all([
+      this.repository.removeFriend(userId, friendId),
+      this.repository.removeFriend(friendId, userId),
+      this.repository.removeFriendRequest(userId, friendId),
+      this.repository.removeFriendRequest(friendId, userId),
+    ]);
+    const updatedUser = await this.getFriendActionProfile(userId);
+
+    return {
+      success: true,
+      message: 'Hủy kết bạn thành công',
+      status: 200,
+      data: updatedUser,
+    };
+  }
+
+  async getFriendActionProfile(userId) {
+    return this.repository.findById(userId, {
+      select: '-password -email -phoneNumber',
+      populate: [
+        { path: 'friends', select: 'fullName avatar slug' },
+        { path: 'friendRequests', select: 'fullName avatar slug' },
+      ],
+    });
+  }
+
+  validateFriendActionIds(userId, targetUserId) {
+    if (!userId || !targetUserId) {
+      throw new BadRequestError('Thiếu userId hoặc targetUserId');
+    }
+
+    if (!isValidObjectId(userId) || !isValidObjectId(targetUserId)) {
+      throw new BadRequestError('ID người dùng không hợp lệ');
+    }
   }
 
   /**

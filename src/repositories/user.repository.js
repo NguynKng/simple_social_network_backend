@@ -161,6 +161,34 @@ class UserRepository extends BaseRepository {
     return user;
   }
 
+  async addFriendRequest(receiverId, senderId) {
+    return this.model.updateOne(
+      { _id: receiverId },
+      { $addToSet: { friendRequests: senderId } },
+    );
+  }
+
+  async removeFriendRequest(receiverId, senderId) {
+    return this.model.updateOne(
+      { _id: receiverId },
+      { $pull: { friendRequests: senderId } },
+    );
+  }
+
+  async addFriend(userId, friendId) {
+    return this.model.updateOne(
+      { _id: userId },
+      { $addToSet: { friends: friendId } },
+    );
+  }
+
+  async removeFriend(userId, friendId) {
+    return this.model.updateOne(
+      { _id: userId },
+      { $pull: { friends: friendId } },
+    );
+  }
+
   /**
    * Search users by name, slug, or email
    * @param {String} searchTerm - Search term
