@@ -1,35 +1,27 @@
 const UserService = require('../services/user.service');
-const { isValidObjectId } = require('../utils/database.util');
 
 const userService = new UserService();
 
-/**
- * UserController — HTTP handlers cho tài nguyên User
- */
 class UserController {
-  /**
-   * GET /api/:version/users/:slug
-   */
-  static async getUserBySlug(req, res, next) {
+  static async searchUsers(req, res, next) {
     try {
-      const { slug } = req.params;
-      const result = isValidObjectId(slug)
-        ? await userService.getUserById(slug)
-        : await userService.getUserBySlug(slug);
+      const { q, page = 1, limit = 10 } = req.query;
+      const result = await userService.searchUsers(q, {
+        page: Number(page) || 1,
+        limit: Math.min(Number(limit) || 10, 50),
+        select: '-_id fullName avatar slug',
+        sort: { fullName: 1 },
+      });
       res.status(200).json(result);
     } catch (error) {
       next(error);
     }
   }
 
-  /**
-   * GET /api/:version/users/:id
-   * Lưu lại để tương thích ngược (nếu hệ thống cũ vẫn gọi theo id).
-   */
-  static async getUserById(req, res, next) {
+  static async getUserProfileBySlug(req, res, next) {
     try {
-      const { id } = req.params;
-      const result = await userService.getUserById(id);
+      const { slug } = req.params;
+      const result = await userService.getUserProfileBySlug(slug);
       res.status(200).json(result);
     } catch (error) {
       next(error);

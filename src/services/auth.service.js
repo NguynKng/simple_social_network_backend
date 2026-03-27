@@ -295,12 +295,6 @@ class AuthService {
     };
   }
 
-  /**
-   * Reset password (admin only)
-   * @param {String} userId - User ID
-   * @param {String} newPassword - New password
-   * @returns {Promise<Object>} Updated user
-   */
   async resetPassword(userId, newPassword) {
     if (!newPassword || newPassword.length < 6) {
       throw new BadRequestError("Mật khẩu mới phải có ít nhất 6 ký tự");
@@ -317,67 +311,8 @@ class AuthService {
     };
   }
 
-  /**
-   * Get current authenticated user profile
-   * @param {String} userId - User ID from token
-   * @returns {Promise<Object>} User profile
-   */
-  async getProfile(userId) {
-    // Validation
-    if (!userId) {
-      throw new BadRequestError("User ID là bắt buộc");
-    }
-
-    const user = await this.userService.getById(userId);
-
-    if (!user) {
-      throw new NotFoundError("Người dùng không tồn tại");
-    }
-
-    return {
-      success: true,
-      message: 'Lấy thông tin profile thành công',
-      status: 200,
-      data: user,
-    };
-  }
-
-  /**
-   * Update user profile
-   * @param {String} userId - User ID
-   * @param {Object} profileData - Profile data to update
-   * @returns {Promise<Object>} Updated user
-   */
-  async updateProfile(userId, profileData) {
-    // Validation
-    if (!userId) {
-      throw new BadRequestError("User ID là bắt buộc");
-    }
-    if (!profileData || Object.keys(profileData).length === 0) {
-      throw new BadRequestError("Dữ liệu cập nhật không được để trống");
-    }
-
-    const updatedUser = await this.userService.updateProfile(userId, profileData);
-
-    return {
-      success: true,
-      message: 'Cập nhật profile thành công',
-      status: 200,
-      data: updatedUser,
-    };
-  }
-
-  /**
-   * Logout user (client-side token removal, server can implement token blacklist)
-   * @param {String} userId - User ID
-   * @returns {Promise<Object>} Success message
-   */
   async logout(userId) {
-    // TODO: Implement token blacklist in Redis for instant token invalidation
-    // For now, client removes token
-
     console.log(`[AuthService] User logged out: ${userId}`);
-
     return {
       success: true,
       message: "Đăng xuất thành công",
@@ -385,12 +320,6 @@ class AuthService {
     };
   }
 
-  /**
-   * Verify email with verification token and OTP
-   * @param {String} verificationToken - JWT verification token from registration
-   * @param {String} otp - 6-digit OTP from email
-   * @returns {Promise<Object>} User and JWT token
-   */
   async verifyEmail(verificationToken, otp) {
     // Input validation
     if (!verificationToken || !otp) {

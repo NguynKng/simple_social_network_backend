@@ -1,7 +1,6 @@
 const BaseService = require('./base.service');
 const UserRepository = require('../repositories/user.repository');
 const { BadRequestError, NotFoundError } = require('../utils/errors');
-const { isValidObjectId } = require('../utils/database.util');
 
 /**
  * UserService - Business logic for User operations
@@ -235,45 +234,14 @@ class UserService extends BaseService {
    * @param {Object} [options] - Query options (populate/select nếu cần)
    * @returns {Promise<Object>} { success, message, status, data }
    */
-  async getUserBySlug(slug, options = {}) {
+  async getUserProfileBySlug(slug, options = {}) {
     if (!slug || typeof slug !== 'string' || !this.isValidSlug(slug)) {
       throw new BadRequestError('Slug người dùng không hợp lệ');
     }
 
-    const { select = '-password -email -phoneNumber' } = options;
-
-    const user = await this.repository.findBySlug(slug, { ...options, select });
+    const user = await this.repository.findProfileBySlug(slug, options);
 
     if (!user || user.isActive === false) {
-      throw new NotFoundError('Người dùng không tồn tại');
-    }
-
-    return {
-      success: true,
-      message: 'Lấy thông tin người dùng thành công',
-      status: 200,
-      data: user,
-    };
-  }
-
-  /**
-   * Lấy thông tin người dùng theo ID 
-   * @param {String} id - MongoDB ObjectId
-   * @param {Object} [options] - Tùy chọn truyền xuống repository (populate, select)
-   * @returns {Promise<Object>} { success, message, status, data }
-   */
-  async getUserById(id, options = {}) {
-    if (!id || typeof id !== 'string' || !isValidObjectId(id)) {
-      throw new BadRequestError('ID người dùng không hợp lệ');
-    }
-
-    const user = await this.repository.findByIdPublic(id, options);
-
-    if (!user) {
-      throw new NotFoundError('Người dùng không tồn tại');
-    }
-
-    if (user.isActive === false) {
       throw new NotFoundError('Người dùng không tồn tại');
     }
 
@@ -341,10 +309,17 @@ class UserService extends BaseService {
    */
   async searchUsers(searchTerm, options = {}) {
     if (!searchTerm || searchTerm.trim().length < 2) {
-      throw new Error('Từ khóa tìm kiếm phải có ít nhất 2 ký tự');
+      throw new BadRequestError('Từ khóa tìm kiếm phải có ít nhất 2 ký tự');
     }
 
-    return this.repository.search(searchTerm.trim(), options);
+    const result = await this.repository.search(searchTerm.trim(), options);
+
+    return {
+      success: true,
+      message: 'Tìm kiếm người dùng thành công',
+      status: 200,
+      data: result,
+    };
   }
 
   /**
