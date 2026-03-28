@@ -1,13 +1,18 @@
-const BaseService = require('./base.service');
-const UserRepository = require('../repositories/user.repository');
-const { BadRequestError, NotFoundError } = require('../utils/errors');
-const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/cloudinary');
-const { isValidObjectId } = require('../utils/database.util');
+const BaseService = require("./base.service");
+const UserRepository = require("../repositories/user.repository");
+const { BadRequestError, NotFoundError } = require("../utils/errors");
+const {
+  uploadToCloudinary,
+  deleteFromCloudinary,
+} = require("../utils/cloudinary");
+const { isValidObjectId } = require("../utils/database.util");
+const NotificationService = require("./notification.service");
+const logger = require("../utils/logger");
 
 /**
  * UserService - Business logic for User operations
  * Extends BaseService with User-specific business rules
- * 
+ *
  * @extends BaseService
  */
 class UserService extends BaseService {
@@ -17,6 +22,7 @@ class UserService extends BaseService {
   constructor() {
     const userRepository = new UserRepository();
     super(userRepository);
+    this.notificationService = new NotificationService();
   }
 
   /**
@@ -53,12 +59,12 @@ class UserService extends BaseService {
     // Remove Vietnamese diacritics and special characters
     const slugBase = fullName
       .toLowerCase()
-      .normalize('NFD') // Decompose Vietnamese characters
-      .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
-      .replace(/đ/g, 'd') // Replace đ with d
-      .replace(/[^a-z0-9\s]/g, '') // Remove special characters
+      .normalize("NFD") // Decompose Vietnamese characters
+      .replace(/[\u0300-\u036f]/g, "") // Remove diacritics
+      .replace(/đ/g, "d") // Replace đ with d
+      .replace(/[^a-z0-9\s]/g, "") // Remove special characters
       .trim()
-      .replace(/\s+/g, '.'); // Replace spaces with dots
+      .replace(/\s+/g, "."); // Replace spaces with dots
 
     // Try to find unique slug (max 10 attempts)
     let attempts = 0;
@@ -66,12 +72,14 @@ class UserService extends BaseService {
 
     while (attempts < maxAttempts) {
       // Generate 6 random digits
-      const randomSuffix = Math.floor(100000 + Math.random() * 900000).toString();
+      const randomSuffix = Math.floor(
+        100000 + Math.random() * 900000,
+      ).toString();
       const slug = `${slugBase}.${randomSuffix}`;
 
       // Check if slug exists
       const exists = await this.repository.slugExists(slug);
-      
+
       if (!exists) {
         return slug;
       }
@@ -94,30 +102,30 @@ class UserService extends BaseService {
 
     // Email validation
     if (!email || !this.isValidEmail(email)) {
-      throw new Error('Email không hợp lệ');
+      throw new Error("Email không hợp lệ");
     }
 
     // Full name validation
     if (!fullName || fullName.trim().length < 2) {
-      throw new Error('Họ tên phải có ít nhất 2 ký tự');
+      throw new Error("Họ tên phải có ít nhất 2 ký tự");
     }
 
     // Password validation
     if (!password || password.length < 6) {
-      throw new Error('Mật khẩu phải có ít nhất 6 ký tự');
+      throw new Error("Mật khẩu phải có ít nhất 6 ký tự");
     }
 
     // Check for existing email
     const emailExists = await this.repository.emailExists(email);
     if (emailExists) {
-      throw new Error('Email đã được sử dụng');
+      throw new Error("Email đã được sử dụng");
     }
 
     // Check for existing phone number
     if (data.phoneNumber) {
       const phoneExists = await this.repository.phoneExists(data.phoneNumber);
       if (phoneExists) {
-        throw new Error('Số điện thoại đã được sử dụng');
+        throw new Error("Số điện thoại đã được sử dụng");
       }
     }
 
@@ -126,9 +134,12 @@ class UserService extends BaseService {
 
     // Validate age if dateOfBirth provided
     if (data.dateOfBirth) {
-      const age = Math.floor((new Date() - new Date(data.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000));
+      const age = Math.floor(
+        (new Date() - new Date(data.dateOfBirth)) /
+          (365.25 * 24 * 60 * 60 * 1000),
+      );
       if (age < 13) {
-        throw new Error('Người dùng phải từ 13 tuổi trở lên');
+        throw new Error("Người dùng phải từ 13 tuổi trở lên");
       }
     }
   }
@@ -144,43 +155,50 @@ class UserService extends BaseService {
 
     // Don't allow password update through regular update
     if (data.password) {
-      throw new Error('Không thể cập nhật mật khẩu qua endpoint này. Sử dụng endpoint thay đổi mật khẩu');
+      throw new Error(
+        "Không thể cập nhật mật khẩu qua endpoint này. Sử dụng endpoint thay đổi mật khẩu",
+      );
     }
 
     // Email validation if provided
     if (email) {
       if (!this.isValidEmail(email)) {
-        throw new Error('Email không hợp lệ');
+        throw new Error("Email không hợp lệ");
       }
 
       const emailExists = await this.repository.emailExists(email, id);
       if (emailExists) {
-        throw new Error('Email đã được sử dụng');
+        throw new Error("Email đã được sử dụng");
       }
     }
 
     // Slug validation if provided
     if (slug) {
       if (!this.isValidSlug(slug)) {
-        throw new Error('Slug chỉ được chứa chữ cái thường, số và dấu gạch ngang');
+        throw new Error(
+          "Slug chỉ được chứa chữ cái thường, số và dấu gạch ngang",
+        );
       }
 
       const slugExists = await this.repository.slugExists(slug, id);
       if (slugExists) {
-        throw new Error('Slug đã được sử dụng');
+        throw new Error("Slug đã được sử dụng");
       }
     }
 
     // Role validation if provided
-    if (role && !['user', 'admin', 'moderator'].includes(role)) {
-      throw new Error('Role không hợp lệ');
+    if (role && !["user", "admin", "moderator"].includes(role)) {
+      throw new Error("Role không hợp lệ");
     }
 
     // Validate age if dateOfBirth updated
     if (data.dateOfBirth) {
-      const age = Math.floor((new Date() - new Date(data.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000));
+      const age = Math.floor(
+        (new Date() - new Date(data.dateOfBirth)) /
+          (365.25 * 24 * 60 * 60 * 1000),
+      );
       if (age < 13) {
-        throw new Error('Người dùng phải từ 13 tuổi trở lên');
+        throw new Error("Người dùng phải từ 13 tuổi trở lên");
       }
     }
   }
@@ -191,8 +209,10 @@ class UserService extends BaseService {
    */
   async afterCreate(user) {
     // Log user registration
-    console.log(`[UserService] New user registered: ${user.slug} (${user.email})`);
-    
+    console.log(
+      `[UserService] New user registered: ${user.slug} (${user.email})`,
+    );
+
     // TODO: Send welcome email
     // TODO: Create default user settings
     // TODO: Trigger analytics event
@@ -205,7 +225,7 @@ class UserService extends BaseService {
   async afterUpdate(user) {
     // Log user update
     console.log(`[UserService] User updated: ${user.slug}`);
-    
+
     // TODO: Send notification if important fields changed
     // TODO: Invalidate cache
   }
@@ -237,19 +257,19 @@ class UserService extends BaseService {
    * @returns {Promise<Object>} { success, message, status, data }
    */
   async getUserProfileBySlug(slug, options = {}) {
-    if (!slug || typeof slug !== 'string' || !this.isValidSlug(slug)) {
-      throw new BadRequestError('Slug người dùng không hợp lệ');
+    if (!slug || typeof slug !== "string" || !this.isValidSlug(slug)) {
+      throw new BadRequestError("Slug người dùng không hợp lệ");
     }
 
     const user = await this.repository.findProfileBySlug(slug, options);
 
     if (!user || user.isActive === false) {
-      throw new NotFoundError('Người dùng không tồn tại');
+      throw new NotFoundError("Người dùng không tồn tại");
     }
 
     return {
       success: true,
-      message: 'Lấy thông tin người dùng thành công',
+      message: "Lấy thông tin người dùng thành công",
       status: 200,
       data: user,
     };
@@ -257,27 +277,27 @@ class UserService extends BaseService {
 
   async setAvatar(userId, file) {
     if (!userId) {
-      throw new BadRequestError('Thiếu userId');
+      throw new BadRequestError("Thiếu userId");
     }
 
     if (!file || !file.buffer) {
-      throw new BadRequestError('Vui lòng tải lên ảnh avatar');
+      throw new BadRequestError("Vui lòng tải lên ảnh avatar");
     }
 
     const user = await this.repository.findById(userId, {
-      select: 'avatar',
+      select: "avatar",
     });
 
     if (!user) {
-      throw new NotFoundError('Người dùng không tồn tại');
+      throw new NotFoundError("Người dùng không tồn tại");
     }
 
-    const uploadResult = await uploadToCloudinary(file.buffer, 'avatar');
+    const uploadResult = await uploadToCloudinary(file.buffer, "avatar");
     const previousAvatar = user.avatar;
 
     await this.repository.update(userId, { avatar: uploadResult.public_id });
 
-    if (previousAvatar && previousAvatar !== 'default-avatar') {
+    if (previousAvatar && previousAvatar !== "default-avatar") {
       try {
         await deleteFromCloudinary(previousAvatar);
       } catch (_error) {
@@ -287,7 +307,7 @@ class UserService extends BaseService {
 
     return {
       success: true,
-      message: 'Cập nhật avatar thành công',
+      message: "Cập nhật avatar thành công",
       status: 200,
       data: {
         avatar: uploadResult.public_id,
@@ -297,27 +317,32 @@ class UserService extends BaseService {
 
   async setCoverPhoto(userId, file) {
     if (!userId) {
-      throw new BadRequestError('Thiếu userId');
+      throw new BadRequestError("Thiếu userId");
     }
 
     if (!file || !file.buffer) {
-      throw new BadRequestError('Vui lòng tải lên ảnh cover');
+      throw new BadRequestError("Vui lòng tải lên ảnh cover");
     }
 
     const user = await this.repository.findById(userId, {
-      select: 'coverPhoto',
+      select: "coverPhoto",
     });
 
     if (!user) {
-      throw new NotFoundError('Người dùng không tồn tại');
+      throw new NotFoundError("Người dùng không tồn tại");
     }
 
-    const uploadResult = await uploadToCloudinary(file.buffer, 'cover');
+    const uploadResult = await uploadToCloudinary(file.buffer, "cover");
     const previousCoverPhoto = user.coverPhoto;
 
-    await this.repository.update(userId, { coverPhoto: uploadResult.public_id });
+    await this.repository.update(userId, {
+      coverPhoto: uploadResult.public_id,
+    });
 
-    if (previousCoverPhoto && previousCoverPhoto !== 'background-gray-default') {
+    if (
+      previousCoverPhoto &&
+      previousCoverPhoto !== "background-gray-default"
+    ) {
       try {
         await deleteFromCloudinary(previousCoverPhoto);
       } catch (_error) {
@@ -327,7 +352,7 @@ class UserService extends BaseService {
 
     return {
       success: true,
-      message: 'Cập nhật ảnh bìa thành công',
+      message: "Cập nhật ảnh bìa thành công",
       status: 200,
       data: {
         coverPhoto: uploadResult.public_id,
@@ -339,38 +364,58 @@ class UserService extends BaseService {
     this.validateFriendActionIds(senderId, targetUserId);
 
     if (String(senderId) === String(targetUserId)) {
-      throw new BadRequestError('Không thể gửi lời mời kết bạn cho chính mình');
+      throw new BadRequestError("Không thể gửi lời mời kết bạn cho chính mình");
     }
 
     const [sender, targetUser] = await Promise.all([
-      this.repository.findById(senderId, { select: '_id isActive' }),
-      this.repository.findById(targetUserId, { select: '_id friends friendRequests isActive' }),
+      this.repository.findById(senderId, { select: "_id isActive" }),
+      this.repository.findById(targetUserId, {
+        select: "_id friends friendRequests isActive",
+      }),
     ]);
 
     if (!sender || sender.isActive === false) {
-      throw new NotFoundError('Người gửi không tồn tại');
+      throw new NotFoundError("Người gửi không tồn tại");
     }
 
     if (!targetUser || targetUser.isActive === false) {
-      throw new NotFoundError('Người nhận không tồn tại');
+      throw new NotFoundError("Người nhận không tồn tại");
     }
 
-    const isAlreadyFriend = targetUser.friends?.some((friendId) => String(friendId) === String(senderId));
+    const isAlreadyFriend = targetUser.friends?.some(
+      (friendId) => String(friendId) === String(senderId),
+    );
     if (isAlreadyFriend) {
-      throw new BadRequestError('Hai người đã là bạn bè');
+      throw new BadRequestError("Hai người đã là bạn bè");
     }
 
-    const requestAlreadySent = targetUser.friendRequests?.some((requestId) => String(requestId) === String(senderId));
+    const requestAlreadySent = targetUser.friendRequests?.some(
+      (requestId) => String(requestId) === String(senderId),
+    );
     if (requestAlreadySent) {
-      throw new BadRequestError('Đã gửi lời mời kết bạn trước đó');
+      throw new BadRequestError("Đã gửi lời mời kết bạn trước đó");
     }
 
     await this.repository.addFriendRequest(targetUserId, senderId);
     const updatedSender = await this.getFriendActionProfile(senderId);
 
+    try {
+      await this.notificationService.sendNotification(
+        targetUserId,
+        senderId,
+        "friend_request",
+      );
+    } catch (error) {
+      logger.warn("Send notification after friend request failed", {
+        senderId,
+        targetUserId,
+        error: error.message,
+      });
+    }
+
     return {
       success: true,
-      message: 'Gửi lời mời kết bạn thành công',
+      message: "Gửi lời mời kết bạn thành công",
       status: 200,
       data: updatedSender,
     };
@@ -380,11 +425,11 @@ class UserService extends BaseService {
     this.validateFriendActionIds(senderId, targetUserId);
 
     const targetUser = await this.repository.findById(targetUserId, {
-      select: '_id friendRequests isActive',
+      select: "_id friendRequests isActive",
     });
 
     if (!targetUser || targetUser.isActive === false) {
-      throw new NotFoundError('Người nhận không tồn tại');
+      throw new NotFoundError("Người nhận không tồn tại");
     }
 
     await this.repository.removeFriendRequest(targetUserId, senderId);
@@ -392,7 +437,7 @@ class UserService extends BaseService {
 
     return {
       success: true,
-      message: 'Hủy lời mời kết bạn thành công',
+      message: "Hủy lời mời kết bạn thành công",
       status: 200,
       data: updatedSender,
     };
@@ -402,25 +447,29 @@ class UserService extends BaseService {
     this.validateFriendActionIds(userId, requesterId);
 
     if (String(userId) === String(requesterId)) {
-      throw new BadRequestError('Không thể chấp nhận lời mời của chính mình');
+      throw new BadRequestError("Không thể chấp nhận lời mời của chính mình");
     }
 
     const [user, requester] = await Promise.all([
-      this.repository.findById(userId, { select: '_id friends friendRequests isActive' }),
-      this.repository.findById(requesterId, { select: '_id friends isActive' }),
+      this.repository.findById(userId, {
+        select: "_id friends friendRequests isActive",
+      }),
+      this.repository.findById(requesterId, { select: "_id friends isActive" }),
     ]);
 
     if (!user || user.isActive === false) {
-      throw new NotFoundError('Người dùng không tồn tại');
+      throw new NotFoundError("Người dùng không tồn tại");
     }
 
     if (!requester || requester.isActive === false) {
-      throw new NotFoundError('Người gửi lời mời không tồn tại');
+      throw new NotFoundError("Người gửi lời mời không tồn tại");
     }
 
-    const requestExists = user.friendRequests?.some((requestId) => String(requestId) === String(requesterId));
+    const requestExists = user.friendRequests?.some(
+      (requestId) => String(requestId) === String(requesterId),
+    );
     if (!requestExists) {
-      throw new BadRequestError('Không tìm thấy lời mời kết bạn');
+      throw new BadRequestError("Không tìm thấy lời mời kết bạn");
     }
 
     await Promise.all([
@@ -428,11 +477,26 @@ class UserService extends BaseService {
       this.repository.addFriend(userId, requesterId),
       this.repository.addFriend(requesterId, userId),
     ]);
+
+    try {
+      await this.notificationService.sendNotification(
+        requesterId,
+        userId,
+        "accepted_request",
+      );
+    } catch (error) {
+      logger.warn("Send notification after accepting friend request failed", {
+        userId,
+        requesterId,
+        error: error.message,
+      });
+    }
+
     const updatedUser = await this.getFriendActionProfile(userId);
 
     return {
       success: true,
-      message: 'Chấp nhận lời mời kết bạn thành công',
+      message: "Chấp nhận lời mời kết bạn thành công",
       status: 200,
       data: updatedUser,
     };
@@ -443,24 +507,26 @@ class UserService extends BaseService {
 
     const [user, requester] = await Promise.all([
       this.repository.findById(userId, {
-      select: '_id friendRequests isActive',
+        select: "_id friendRequests isActive",
       }),
       this.repository.findById(requesterId, {
-        select: '_id isActive',
+        select: "_id isActive",
       }),
     ]);
 
     if (!user || user.isActive === false) {
-      throw new NotFoundError('Người dùng không tồn tại');
+      throw new NotFoundError("Người dùng không tồn tại");
     }
 
     if (!requester || requester.isActive === false) {
-      throw new NotFoundError('Người gửi lời mời không tồn tại');
+      throw new NotFoundError("Người gửi lời mời không tồn tại");
     }
 
-    const requestExists = user.friendRequests?.some((requestId) => String(requestId) === String(requesterId));
+    const requestExists = user.friendRequests?.some(
+      (requestId) => String(requestId) === String(requesterId),
+    );
     if (!requestExists) {
-      throw new BadRequestError('Không tìm thấy lời mời kết bạn');
+      throw new BadRequestError("Không tìm thấy lời mời kết bạn");
     }
 
     await this.repository.removeFriendRequest(userId, requesterId);
@@ -468,7 +534,7 @@ class UserService extends BaseService {
 
     return {
       success: true,
-      message: 'Từ chối lời mời kết bạn thành công',
+      message: "Từ chối lời mời kết bạn thành công",
       status: 200,
       data: updatedUser,
     };
@@ -478,25 +544,27 @@ class UserService extends BaseService {
     this.validateFriendActionIds(userId, friendId);
 
     if (String(userId) === String(friendId)) {
-      throw new BadRequestError('Không thể hủy kết bạn với chính mình');
+      throw new BadRequestError("Không thể hủy kết bạn với chính mình");
     }
 
     const [user, friend] = await Promise.all([
-      this.repository.findById(userId, { select: '_id friends isActive' }),
-      this.repository.findById(friendId, { select: '_id isActive' }),
+      this.repository.findById(userId, { select: "_id friends isActive" }),
+      this.repository.findById(friendId, { select: "_id isActive" }),
     ]);
 
     if (!user || user.isActive === false) {
-      throw new NotFoundError('Người dùng không tồn tại');
+      throw new NotFoundError("Người dùng không tồn tại");
     }
 
     if (!friend || friend.isActive === false) {
-      throw new NotFoundError('Bạn bè không tồn tại');
+      throw new NotFoundError("Bạn bè không tồn tại");
     }
 
-    const isFriend = user.friends?.some((currentFriendId) => String(currentFriendId) === String(friendId));
+    const isFriend = user.friends?.some(
+      (currentFriendId) => String(currentFriendId) === String(friendId),
+    );
     if (!isFriend) {
-      throw new BadRequestError('Hai người chưa là bạn bè');
+      throw new BadRequestError("Hai người chưa là bạn bè");
     }
 
     await Promise.all([
@@ -509,7 +577,7 @@ class UserService extends BaseService {
 
     return {
       success: true,
-      message: 'Hủy kết bạn thành công',
+      message: "Hủy kết bạn thành công",
       status: 200,
       data: updatedUser,
     };
@@ -517,21 +585,21 @@ class UserService extends BaseService {
 
   async getFriendActionProfile(userId) {
     return this.repository.findById(userId, {
-      select: '-password -email -phoneNumber',
+      select: "-password -email -phoneNumber",
       populate: [
-        { path: 'friends', select: 'fullName avatar slug' },
-        { path: 'friendRequests', select: 'fullName avatar slug' },
+        { path: "friends", select: "fullName avatar slug" },
+        { path: "friendRequests", select: "fullName avatar slug" },
       ],
     });
   }
 
   validateFriendActionIds(userId, targetUserId) {
     if (!userId || !targetUserId) {
-      throw new BadRequestError('Thiếu userId hoặc targetUserId');
+      throw new BadRequestError("Thiếu userId hoặc targetUserId");
     }
 
     if (!isValidObjectId(userId) || !isValidObjectId(targetUserId)) {
-      throw new BadRequestError('ID người dùng không hợp lệ');
+      throw new BadRequestError("ID người dùng không hợp lệ");
     }
   }
 
@@ -544,25 +612,27 @@ class UserService extends BaseService {
    */
   async updatePassword(userId, currentPassword, newPassword) {
     // Get user with password field
-    const user = await this.repository.findById(userId, { select: '+password' });
-    
+    const user = await this.repository.findById(userId, {
+      select: "+password",
+    });
+
     if (!user) {
-      throw new Error('Người dùng không tồn tại');
+      throw new Error("Người dùng không tồn tại");
     }
 
     // Verify current password
     const isPasswordCorrect = await user.comparePassword(currentPassword);
     if (!isPasswordCorrect) {
-      throw new Error('Mật khẩu hiện tại không đúng');
+      throw new Error("Mật khẩu hiện tại không đúng");
     }
 
     // Validate new password
     if (!newPassword || newPassword.length < 6) {
-      throw new Error('Mật khẩu mới phải có ít nhất 6 ký tự');
+      throw new Error("Mật khẩu mới phải có ít nhất 6 ký tự");
     }
 
     if (currentPassword === newPassword) {
-      throw new Error('Mật khẩu mới phải khác mật khẩu cũ');
+      throw new Error("Mật khẩu mới phải khác mật khẩu cũ");
     }
 
     // Update password
@@ -594,7 +664,7 @@ class UserService extends BaseService {
 
     return {
       success: true,
-      message: 'Tìm kiếm người dùng thành công',
+      message: "Tìm kiếm người dùng thành công",
       status: 200,
       data: result,
     };

@@ -206,6 +206,23 @@ class PostService {
 
     await this.postRepository.addComment(postId, comment._id);
 
+    if (String(post.author) !== String(userId)) {
+      try {
+        await this.notificationService.sendNotification(
+          String(post.author),
+          userId,
+          "comment_post",
+          { postId: String(postId), commentId: String(comment._id) },
+        );
+      } catch (error) {
+        logger.warn("Send notification after commenting post failed", {
+          postId: String(postId),
+          userId,
+          error: error.message,
+        });
+      }
+    }
+
     const populatedComment = await this.commentRepository.getCommentById(
       comment._id,
       { populate: [{ path: "user", select: "fullName avatar slug" }] },
@@ -344,6 +361,23 @@ class PostService {
 
       await this.reactionRepository.updateReactionType(existedReaction._id, type);
 
+      if (String(post.author) !== String(userId)) {
+        try {
+          await this.notificationService.sendNotification(
+            String(post.author),
+            userId,
+            "react_post",
+            { postId: String(postId), reactionType: type },
+          );
+        } catch (error) {
+          logger.warn("Send notification after updating reaction failed", {
+            postId: String(postId),
+            userId,
+            error: error.message,
+          });
+        }
+      }
+
       return {
         success: true,
         status: 200,
@@ -360,6 +394,23 @@ class PostService {
     });
 
     await this.postRepository.addReaction(postId, reaction._id);
+
+    if (String(post.author) !== String(userId)) {
+      try {
+        await this.notificationService.sendNotification(
+          String(post.author),
+          userId,
+          "react_post",
+          { postId: String(postId), reactionType: type },
+        );
+      } catch (error) {
+        logger.warn("Send notification after reacting post failed", {
+          postId: String(postId),
+          userId,
+          error: error.message,
+        });
+      }
+    }
 
     return {
       success: true,

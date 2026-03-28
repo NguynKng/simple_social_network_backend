@@ -12,7 +12,13 @@ class PostRepository extends BaseRepository {
       .sort({ createdAt: -1 })
       .populate("author", "fullName avatar slug")
       .populate("taggedUsers", "fullName avatar slug")
-      .populate("reactions")
+      .populate({
+        path: "reactions",
+        populate: {
+          path: "user",
+          select: "fullName avatar slug",
+        },
+      })
       .populate("comments");
   }
 
@@ -31,7 +37,13 @@ class PostRepository extends BaseRepository {
       .findById(postId)
       .populate("author", "fullName avatar slug")
       .populate("taggedUsers", "fullName avatar slug")
-      .populate("reactions")
+      .populate({
+        path: "reactions",
+        populate: {
+          path: "user",
+          select: "fullName avatar slug",
+        },
+      })
       .populate("comments");
   }
 
