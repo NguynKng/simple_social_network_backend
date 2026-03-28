@@ -86,14 +86,14 @@ class AuthService {
       });
     } catch (error) {
       // Wrap UserService errors with appropriate error classes
-      if (error.message.includes('Email đã được sử dụng')) {
-        throw new ConflictError('Email đã được sử dụng');
+      if (error.message.includes("Email đã được sử dụng")) {
+        throw new ConflictError("Email đã được sử dụng");
       }
-      if (error.message.includes('Số điện thoại đã được sử dụng')) {
-        throw new ConflictError('Số điện thoại đã được sử dụng');
+      if (error.message.includes("Số điện thoại đã được sử dụng")) {
+        throw new ConflictError("Số điện thoại đã được sử dụng");
       }
-      if (error.message.includes('Slug đã được sử dụng')) {
-        throw new ConflictError('Slug đã được sử dụng');
+      if (error.message.includes("Slug đã được sử dụng")) {
+        throw new ConflictError("Slug đã được sử dụng");
       }
       // Re-throw as BadRequestError for other validation errors
       throw new BadRequestError(error.message);
@@ -109,7 +109,10 @@ class AuthService {
     try {
       await emailUtil.sendVerificationEmail(email, fullName, otp);
     } catch (emailError) {
-        console.log(`[AuthService] Failed to send verification email to ${email}:`, emailError);
+      console.log(
+        `[AuthService] Failed to send verification email to ${email}:`,
+        emailError,
+      );
       // If email fails, delete the created user and throw error
       await this.userService.delete(user._id);
       throw new BadRequestError(
@@ -148,6 +151,10 @@ class AuthService {
     // Find user by email or slug (include password for comparison)
     const user = await this.userService.getByEmail(email, {
       select: "+password",
+      populate: [
+        { path: "friends", select: "_id avatar fullName slug" },
+        { path: "friendRequests", select: "_id avatar fullName slug" },
+      ],
     });
 
     if (!user) {
@@ -183,7 +190,7 @@ class AuthService {
 
     return {
       success: true,
-      message: 'Đăng nhập thành công',
+      message: "Đăng nhập thành công",
       status: 200,
       data: {
         user: userResponse,
@@ -208,7 +215,13 @@ class AuthService {
       const decoded = jwt.verify(token, config.JWT_SECRET);
 
       // Check if user still exists
-      const user = await this.userService.getById(decoded.userId);
+      const user = await this.userService.getById(decoded.userId, {
+        select: "-password",
+        populate: [
+          { path: "friends", select: "_id avatar fullName slug" },
+          { path: "friendRequests", select: "_id avatar fullName slug" },
+        ],
+      });
       if (!user) {
         throw new UnauthorizedError("Người dùng không tồn tại");
       }
@@ -220,7 +233,7 @@ class AuthService {
 
       return {
         success: true,
-        message: 'Token hợp lệ',
+        message: "Token hợp lệ",
         status: 200,
         data: user,
       };
@@ -250,7 +263,7 @@ class AuthService {
 
     return {
       success: true,
-      message: 'Token đã được làm mới',
+      message: "Token đã được làm mới",
       status: 200,
       data: {
         user,
@@ -281,15 +294,11 @@ class AuthService {
     }
 
     // Update password through UserService
-    await this.userService.updatePassword(
-      userId,
-      currentPassword,
-      newPassword,
-    );
+    await this.userService.updatePassword(userId, currentPassword, newPassword);
 
     return {
       success: true,
-      message: 'Đổi mật khẩu thành công',
+      message: "Đổi mật khẩu thành công",
       status: 200,
       data: null,
     };
@@ -305,7 +314,7 @@ class AuthService {
 
     return {
       success: true,
-      message: 'Reset mật khẩu thành công',
+      message: "Reset mật khẩu thành công",
       status: 200,
       data: null,
     };

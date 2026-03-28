@@ -69,6 +69,10 @@ class UserRepository extends BaseRepository {
     if (options.select) {
       query.select(options.select);
     }
+
+    if (options.populate) {
+      query.populate(options.populate);
+    }
     
     return query.exec();
   }
