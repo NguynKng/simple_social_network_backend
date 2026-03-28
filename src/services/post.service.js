@@ -2,7 +2,9 @@ const mongoose = require("mongoose");
 const PostRepository = require("../repositories/post.repository");
 const CommentRepository = require("../repositories/comment.repository");
 const ReactionRepository = require("../repositories/reaction.repository");
+const NotificationService = require("./notification.service");
 const { uploadToCloudinary } = require("../utils/cloudinary");
+const logger = require("../utils/logger");
 const {
   BadRequestError,
   NotFoundError,
@@ -16,6 +18,7 @@ class PostService {
     this.postRepository = new PostRepository();
     this.commentRepository = new CommentRepository();
     this.reactionRepository = new ReactionRepository();
+    this.notificationService = new NotificationService();
   }
 
   async create_post(payload = {}, userId, files = {}) {
@@ -75,6 +78,18 @@ class PostService {
     });
 
     const populatedPost = await this.postRepository.getPostDetail(post._id);
+
+    try {
+      await this.notificationService.sendNotificationToFriends(userId, 'new_post', {
+        postId: String(post._id),
+      });
+    } catch (error) {
+      logger.warn('Send notification after post creation failed', {
+        userId,
+        postId: String(post._id),
+        error: error.message,
+      });
+    }
 
     return {
       success: true,
