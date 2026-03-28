@@ -8,11 +8,13 @@ const UserRepository = require('./user.repository');
 const PostRepository = require('./post.repository');
 const CommentRepository = require('./comment.repository');
 const ReactionRepository = require('./reaction.repository');
+const NotificationRepository = require('./notification.repository');
 
 module.exports = {
   BaseRepository,
   UserRepository,
   PostRepository,
   CommentRepository,
-  ReactionRepository
+  ReactionRepository,
+  NotificationRepository
 };
