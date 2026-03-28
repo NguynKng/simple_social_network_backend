@@ -4,6 +4,8 @@ const databaseRoutes = require('./database.routes');
 const authRoutes = require('./auth.routes');
 const newsRoutes = require("./news.routes")
 const postRoutes = require('./post.routes');
+const userRoutes = require('./user.routes');
+const notificationRoutes = require('./notification.routes');
 
 class RouteManager {
   constructor() {
@@ -25,8 +27,10 @@ class RouteManager {
     this.router.use('/news', newsRoutes);
     // Post routes
     this.router.use('/posts', postRoutes);
-    // Add more route modules here as you develop
-    // this.router.use('/users', userRoutes);
+    // User routes
+    this.router.use('/users', userRoutes);
+    // Notification routes
+    this.router.use('/notifications', notificationRoutes);
   }
 
   getRouter() {

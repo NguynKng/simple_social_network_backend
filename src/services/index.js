@@ -6,9 +6,11 @@
 const BaseService = require('./base.service');
 const UserService = require('./user.service');
 const AuthService = require('./auth.service');
+const NotificationService = require('./notification.service');
 
 module.exports = {
   BaseService,
   UserService,
-  AuthService
+  AuthService,
+  NotificationService
 };

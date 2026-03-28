@@ -87,50 +87,6 @@ class AuthController {
     }
   }
 
-  /**
-   * Get current user profile
-   * GET /api/auth/profile
-   * @requires Authentication
-   */
-  static async getProfile(req, res, next) {
-    try {
-      const userId = req.user.userId;
-      const result = await authService.getProfile(userId);
-
-      res.status(200).json(result);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
-   * Update current user profile
-   * PUT /api/auth/profile
-   * @requires Authentication
-   * @body {String} [fullName] - Full name
-   * @body {String} [bio] - User bio
-   * @body {String} [avatar] - Avatar URL
-   */
-  static async updateProfile(req, res, next) {
-    try {
-      const userId = req.user.userId;
-      const result = await authService.updateProfile(userId, req.body);
-
-      logger.info(`User profile updated: ${result.data.slug}`);
-
-      res.status(200).json(result);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
-   * Change password
-   * PUT /api/auth/change-password
-   * @requires Authentication
-   * @body {String} currentPassword - Current password
-   * @body {String} newPassword - New password
-   */
   static async changePassword(req, res, next) {
     try {
       const userId = req.user.userId;
@@ -146,27 +102,6 @@ class AuthController {
     }
   }
 
-  /**
-   * Refresh JWT token
-   * POST /api/auth/refresh
-   * @requires Authentication
-   */
-  static async refreshToken(req, res, next) {
-    try {
-      const token = req.headers.authorization?.replace('Bearer ', '');
-      const result = await authService.refreshToken(token);
-
-      res.status(200).json(result);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
-   * Logout user
-   * POST /api/auth/logout
-   * @requires Authentication
-   */
   static async logout(req, res, next) {
     try {
       const userId = req.user.userId;
@@ -180,11 +115,6 @@ class AuthController {
     }
   }
 
-  /**
-   * Verify token
-   * POST /api/auth/verify
-   * @body {String} token - JWT token to verify
-   */
   static async verifyToken(req, res, next) {
     try {
       const { token } = req.body;
