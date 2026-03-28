@@ -6,6 +6,8 @@ const newsRoutes = require("./news.routes")
 const postRoutes = require('./post.routes');
 const userRoutes = require('./user.routes');
 const notificationRoutes = require('./notification.routes');
+const chatRoutes = require('./chat.routes');
+const messageRoutes = require('./message.routes');
 
 class RouteManager {
   constructor() {
@@ -31,6 +33,10 @@ class RouteManager {
     this.router.use('/users', userRoutes);
     // Notification routes
     this.router.use('/notifications', notificationRoutes);
+    // Chat routes
+    this.router.use('/chats', chatRoutes);
+    // Message routes
+    this.router.use('/messages', messageRoutes);
   }
 
   getRouter() {
